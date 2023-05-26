@@ -11,3 +11,11 @@ func (b *Bot) MemberHasRole(member *discordgo.Member, role string) bool {
 
 	return false
 }
+
+func (b *Bot) IsValidOfficer(member *discordgo.Member) bool {
+	return b.MemberHasRole(member, b.cfg.DiscordOfficerRole)
+}
+
+func (b *Bot) IsValidMember(member *discordgo.Member) bool {
+	return b.MemberHasRole(member, b.cfg.DiscordMemberRole)
+}
