@@ -66,7 +66,7 @@ func (b *Bot) onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) 
 	case "tod":
 		b.doTODCommand(s, m)
 		break
-	case "help":
+	default:
 		b.doHelpCommand(s, m)
 		break
 	}

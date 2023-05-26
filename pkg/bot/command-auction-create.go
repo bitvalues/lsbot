@@ -2,6 +2,6 @@ package bot
 
 import "github.com/bwmarrin/discordgo"
 
-func (b *Bot) doAuctionCreate(s *discordgo.Session, m *discordgo.MessageCreate, commands []string) {
+func (b *Bot) doAuctionCreateCommand(s *discordgo.Session, m *discordgo.MessageCreate, commands []string) {
 	//
 }
