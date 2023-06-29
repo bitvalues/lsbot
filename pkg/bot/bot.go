@@ -1,8 +1,6 @@
 package bot
 
 import (
-	"strings"
-
 	"github.com/bitvalues/lsbot/pkg/config"
 	"github.com/bwmarrin/discordgo"
 	"github.com/sirupsen/logrus"
@@ -12,6 +10,15 @@ type Bot struct {
 	session *discordgo.Session
 	log     *logrus.Logger
 	cfg     config.Config
+	plugins []BotPlugin
+}
+
+type BotPlugin interface {
+	GetName() string
+	GetPrimaryCommand() string
+	Startup(log *logrus.Entry)
+	Shutdown()
+	HandlePrimaryCommand(args []string)
 }
 
 func NewBot(cfg config.Config, logger *logrus.Logger) (*Bot, error) {
@@ -24,54 +31,60 @@ func NewBot(cfg config.Config, logger *logrus.Logger) (*Bot, error) {
 		session: session,
 		log:     logger,
 		cfg:     cfg,
+		plugins: []BotPlugin{},
 	}
 
 	return &bot, nil
 }
 
+func (b *Bot) GetSession() *discordgo.Session {
+	return b.session
+}
+
+func (b *Bot) UpdateSession(session *discordgo.Session) {
+	b.session = session
+}
+
+func (b *Bot) GetConfig() config.Config {
+	return b.cfg
+}
+
+func (b *Bot) LoadPlugin(plugin BotPlugin) {
+	b.plugins = append(b.plugins, plugin)
+}
+
+func (b *Bot) GetLogger() *logrus.Logger {
+	return b.log
+}
+
 func (b *Bot) Startup() {
-	b.session.AddHandler(b.onMessageCreate)
-	b.session.Identify.Intents = discordgo.IntentsGuildMessages
+	// house-keeping
+	b.GetLogger().Debug("Starting up...")
 
 	// Open a websocket connection to Discord and begin listening.
 	if err := b.session.Open(); err != nil {
-		b.log.WithError(err).Error("error opening connection")
-		return
-	}
-}
-
-func (b *Bot) onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	// cache the new session pointer (just in case)
-	b.session = s
-
-	// make sure we weed-out non-commands
-	if !strings.HasPrefix(strings.ToLower(m.Content), "!lsbot") {
+		b.GetLogger().WithError(err).Error("error opening connection")
 		return
 	}
 
-	// make sure there are at least 7 characters before we continue
-	if len(m.Content) <= 7 {
-		b.doHelpCommand(s, m)
-		return
+	// begin loading all of our plugins
+	for _, plugin := range b.plugins {
+		plugin.Startup(b.GetLogger().WithField("plugin", plugin.GetName()))
 	}
 
-	// parse the message command
-	parts := strings.Split(m.Content[7:], " ")
-
-	// now, take an action accordingly
-	switch strings.ToLower(parts[0]) {
-	case "auction":
-		b.handleAuctionCommand(s, m, parts[1:])
-		break
-	case "tod":
-		b.doTODCommand(s, m)
-		break
-	default:
-		b.doHelpCommand(s, m)
-		break
-	}
+	// register a handler for when messages are created
+	b.GetSession().AddHandler(b.onMessageCreated)
+	b.GetSession().Identify.Intents = discordgo.IntentsGuildMessages
 }
 
 func (b *Bot) Shutdown() {
-	b.session.Close()
+	b.GetLogger().Debug("Shutting down...")
+
+	// make sure the session is closed
+	defer b.session.Close()
+
+	// begin shutting down all of our plugins
+	for _, plugin := range b.plugins {
+		plugin.Shutdown()
+	}
 }

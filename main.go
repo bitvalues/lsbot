@@ -8,6 +8,7 @@ import (
 
 	"github.com/bitvalues/lsbot/pkg/bot"
 	"github.com/bitvalues/lsbot/pkg/config"
+	"github.com/bitvalues/lsbot/pkg/plugins/auctions"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
@@ -68,6 +69,9 @@ func main() {
 		log.WithError(err).Fatal("could not create discord session")
 		return
 	}
+
+	// register all of our plugins
+	bot.LoadPlugin(auctions.NewAuctionsPlugin(bot))
 
 	// make sure to shutdown the bot before we close out
 	defer bot.Shutdown()
